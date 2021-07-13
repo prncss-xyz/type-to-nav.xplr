@@ -1,12 +1,10 @@
-Port of [nnn]'s *type-to-nav* to [xplr](https://github.com/sayanarijit/xplr) with some tweaks.
+Port of [nnn](https://github.com/jarun/nnn)'s _type-to-nav_ to [xplr](https://github.com/sayanarijit/xplr) with some tweaks.
 
-Features
-------------
+## Features
 
 Activate this mode and start to type the beginning of relative path. Current directory is filtered accordingly. You can press complete (`tab`) when all the remaining entries stats with the same prefix. When only one entry remains, if it is a directory this directory is focused, filter is reset and you can continue navigating. If it is a file, `type-to-nav` mode exits, focusing on that file (the behavior can be changed).
 
-Installation
-------------
+## Installation
 
 ### Install manually
 
@@ -28,9 +26,9 @@ Installation
 
   ```lua
   require("type-to-nav").setup()
-  
+
   -- Or
-  
+
   require("type-to-nav").setup {
     default_bindings = false,
     -- action triggered when there is only one path in selection and it is a file
@@ -60,15 +58,15 @@ Installation
     message = { { CallLuaSilently = "custom.type_to_nav_accept" } },
   }
   ```
+
   -- this setup reproduces the defaults, work it from there!
 
-TODO
-------------
+## TODO
 
 - Deal with symbolic links.
 - Add action to clear filter (so you can move up in path).
-- Support automatic completion instead having to press `tab` manually (and symmetric behavior for `backspace`) 
+- Support automatic completion instead having to press `tab` manually (and symmetric behavior for `backspace`)
 - Refuse types that leads to empty selection.
 - Restore dot filter if it was automatically removed.
 - Improve filter handling in general.
-- Bring unicode support. (I don't think this can be achieved in the current state of xplr's API) 
+- Bring unicode support. (I don't think this can be achieved in the current state of xplr's API)
