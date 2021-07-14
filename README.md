@@ -8,7 +8,7 @@ In selecting mode, when entries are narrowed to a single file, the file is toggl
 
 Also:
 
-- When user types '.' as a first character, plugin temporarily disable filter that hides files starting with '.'.
+- When user types '.' as a first character, plugin disables filter that hides files starting with '.'.
 - If user types a key that would lead to an empty entries, this key is canceled.
 - Always focus on the shortest path, so you never need to use up/down to select an entry (`accept` key and printable characters will suffice). Amongst equally short paths, will focus the first one.
 
@@ -47,7 +47,7 @@ Also:
     end
   end
 
-  xplr.config.modes.builtin.default.key_bindings.on_key['ctrl-n'] = {
+  xplr.config.modes.builtin.default.key_bindings.on_key['n'] = {
     help = 'type-to-nav',
     messages = {
       { CallLuaSilently = 'custom.type_to_nav_start' },
@@ -68,7 +68,11 @@ Also:
       help = 'clear input',
       messages = { { CallLuaSilently = 'custom.type_to_nav_clear_input' } },
     },
-    ['h'] = {
+    ['ctrl-v'] = {
+      help = 'toggle selecting',
+      messages = { { CallLuaSilently = 'custom.type_to_nav_toggle_selecting' } },
+    },
+    ['ctrl-h'] = {
       help = 'up',
       messages = { { CallLuaSilently = 'custom.type_to_nav_up' } },
     },
@@ -92,8 +96,10 @@ Also:
   })
   ```
 
-## TODO
+## TODO / not working
 
+- restore dot filter on dir change
+- proper unicode handling on backspace
 - cover cases relative to entering directory where all files starts the same
 - refactor code
   - break big function

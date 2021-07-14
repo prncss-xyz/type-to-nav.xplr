@@ -27,14 +27,13 @@ local opts = {
   default_bindings = true,
 }
 
-local is_dot_filter
 local dir_card
 local selecting
 
 local function reset_filters(app, messages)
-  if is_dot_filter then
+  if app.input_buffer:sub(1,1) == '.' then
     table.insert(messages, {
-      AddNodeFilter = {
+      RemoveNodeFilter = {
         filter = 'RelativePathDoesNotStartWith',
         input = '.',
       },
@@ -88,6 +87,29 @@ local function accept(app, messages, node)
   end
 end
 
+xplr.fn.custom.type_to_nav_private_pre_rebuf = function(app)
+  local messages = {}
+  if app.input_buffer == '.' then
+    table.insert(messages, {
+      RemoveNodeFilter = {
+        filter = 'RelativePathDoesNotStartWith',
+        input = '.',
+      },
+    })
+    table.insert(messages, {
+      AddNodeFilter = {
+        filter = 'RelativePathDoesStartWith',
+        input = '.',
+      },
+    })
+    table.insert(messages, 'ExplorePwd')
+  end
+  table.insert(
+    messages,
+    { CallLuaSilently = 'custom.type_to_nav_private_rebuf' }
+  )
+  return messages
+end
 -- I am a monster, break me into pieces
 xplr.fn.custom.type_to_nav_private_rebuf = function(app)
   local messages = {}
@@ -155,7 +177,7 @@ xplr.fn.custom.type_to_nav_private_rebuf = function(app)
       })
     end
   end
-  if app.input_buffer == '.' then
+  if input:sub(1, 1) == '.' then
     table.insert(messages, {
       RemoveNodeFilter = {
         filter = 'RelativePathDoesNotStartWith',
@@ -190,6 +212,7 @@ xplr.fn.custom.type_to_nav_clear_input = function(app)
   local messages = {}
   reset_filters(app, messages)
   table.insert(messages, { SetInputBuffer = '' })
+  table.insert(messages, 'ExplorePwd')
   table.insert(
     messages,
     { CallLuaSilently = 'custom.type_to_nav_private_rebuf' }
@@ -317,7 +340,7 @@ end
 local char_bindings = {
   messages = {
     'BufferInputFromKey',
-    { CallLuaSilently = 'custom.type_to_nav_private_rebuf' },
+    { CallLuaSilently = 'custom.type_to_nav_private_pre_rebuf' },
   },
 }
 xplr.config.modes.custom.type_to_nav.key_bindings = {
