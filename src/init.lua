@@ -28,8 +28,39 @@ local opts = {
 }
 
 local is_dot_filter
+local dir_card
 
-xplr.fn.custom.type_to_nav_rebuf = function(app)
+local function reset_filters(app, messages)
+  if is_dot_filter then
+    table.insert(messages, {
+      AddNodeFilter = {
+        filter = 'RelativePathDoesNotStartWith',
+        input = '.',
+      },
+    })
+  end
+  for _, filter in ipairs(app.explorer_config.filters) do
+    if filter.filter == 'RelativePathDoesStartWith' then
+      table.insert(messages, {
+        RemoveNodeFilter = {
+          filter = 'RelativePathDoesStartWith',
+          input = filter.input,
+        },
+      })
+    end
+  end
+end
+
+local function quit(app, messages)
+  local focused_node = app.focused_node
+  reset_filters(app, messages)
+  table.insert(messages, 'ExplorePwdAsync')
+  table.insert(messages, 'PopMode')
+  table.insert(messages, { SwitchModeBuiltin = 'default' })
+  table.insert(messages, { FocusPath = focused_node.absolute_path })
+end
+
+local function rebuf(app, messages)
   if #app.input_buffer > 0 then
     local count = 0
     local node
@@ -41,23 +72,29 @@ xplr.fn.custom.type_to_nav_rebuf = function(app)
         node = node0
       end
     end
+    if count == 0 then
+      -- This is an hack to make it unicode safe; not enough tested yet
+      dir_card = 0
+      local input = app.input_buffer
+      input = input:sub(1, -2)
+      table.insert(messages, { SetInputBuffer = input })
+      table.insert(messages, 'ExplorePwd')
+      table.insert(messages, { CallLuaSilently = 'custom.type_to_nav_back0' })
+      return
+    end
     if count == 1 then
-      local messages = {}
       if node.is_dir then
-        table.insert(
-          messages,
-          { CallLuaSilently = 'custom.type_to_nav_reset_filters' }
-        )
+        reset_filters(app, messages)
         table.insert(messages, { ChangeDirectory = node.absolute_path })
         table.insert(messages, { SetInputBuffer = '' })
         table.insert(messages, 'ExplorePwdAsync')
       elseif node.is_file then
-        table.insert(messages, { CallLuaSilently = 'custom.type_to_nav_quit' })
+        quit(app, messages)
+        table.insert(messages, { FocusPath = node.absolute_path })
       end
-      return messages
+      return
     end
   end
-  local messages = {}
   for _, filter in ipairs(app.explorer_config.filters) do
     if filter.filter == 'RelativePathDoesStartWith' then
       table.insert(messages, {
@@ -76,33 +113,56 @@ xplr.fn.custom.type_to_nav_rebuf = function(app)
       },
     })
   end
-  table.insert(messages, {
-    AddNodeFilter = {
-      filter = 'RelativePathDoesStartWith',
-      input = app.input_buffer,
-    },
-  })
+  if #app.input_buffer > 0 then
+    table.insert(messages, {
+      AddNodeFilter = {
+        filter = 'RelativePathDoesStartWith',
+        input = app.input_buffer,
+      },
+    })
+  end
+  table.insert(messages, 'ExplorePwdAsync')
+end
+
+-- local function clear_input(app, messages)
+--   reset_filters(app, messages)
+--   table.insert(messages, { SetInputBuffer = '' })
+--   rebuf(app, messages)
+-- end
+
+xplr.config.modes.custom.type_to_nav = {
+  name = 'type-to-nav',
+}
+
+xplr.fn.custom.type_to_nav_reset_filters = function(app)
+  local messages = {}
+  reset_filters(app, messages)
   table.insert(messages, 'ExplorePwdAsync')
   return messages
 end
 
-xplr.fn.custom.type_to_nav_clear_input = function()
+xplr.fn.custom.type_to_nav_rebuf = function(app)
   local messages = {}
-  table.insert(
-    messages,
-    { CallLuaSilently = 'custom.type_to_nav_reset_filters' }
-  )
+  rebuf(app, messages)
+  return messages
+end
+
+xplr.fn.custom.type_to_nav_clear_input = function(app)
+  local messages = {}
+  reset_filters(app, messages)
   table.insert(messages, { SetInputBuffer = '' })
   table.insert(messages, { CallLuaSilently = 'custom.type_to_nav_rebuf' })
   return messages
 end
 
-xplr.fn.custom.type_to_nav_up = function()
-  return {
-    { SetInputBuffer = '' },
-    { ChangeDirectory = '..' },
-    { CallLuaSilently = 'custom.type_to_nav_rebuf' },
-  }
+xplr.fn.custom.type_to_nav_up = function(app)
+  local messages = {}
+  reset_filters(app, messages)
+  table.insert(messages, { SetInputBuffer = '' })
+  table.insert(messages, { ChangeDirectory = '..' })
+  table.insert(messages, 'ExplorePwd')
+  table.insert(messages, { CallLuaSilently = 'custom.type_to_nav_rebuf' })
+  return messages
 end
 
 xplr.fn.custom.type_to_nav_complete = function(app)
@@ -118,33 +178,23 @@ xplr.fn.custom.type_to_nav_complete = function(app)
       input = longest_common_chain(input, p)
     end
   end
-  return {
-    { SetInputBuffer = input },
-    { CallLuaSilently = 'custom.type_to_nav_rebuf' },
-  }
+  local messages = {}
+  table.insert(messages, { SetInputBuffer = input })
+  table.insert(messages, { CallLuaSilently = 'custom.type_to_nav_rebuf' })
+  return messages
 end
 
-xplr.fn.custom.type_to_nav_remove_last_character = function(app)
-  local input = app.input_buffer
-  if #input == 0 then
-    return
-  end
-  input = input:sub(1, -2)
-  return {
-    { SetInputBuffer = input },
-    { CallLuaSilently = 'custom.type_to_nav_rebuf' },
-  }
-end
-
-xplr.config.modes.custom.type_to_nav = {
-  name = 'type-to-nav',
-}
+-- xplr.fn.custom.type_to_nav_remove_last_character = function(app)
+--   local messages = {}
+--   table.insert(messages, 'RemoveInputBufferLastCharacter')
+--   table.insert(messages, { CallLuaSilently = 'custom.type_to_nav_rebuf' })
+--   return messages
+-- end
 
 xplr.fn.custom.type_to_nav_start = function(app)
-  local messages = {
-    { SwitchModeCustom = 'type_to_nav' },
-    { BufferInput = '' },
-  }
+  local messages = {}
+  table.insert(messages, { SwitchModeCustom = 'type_to_nav' })
+  table.insert(messages, { BufferInput = '' })
   is_dot_filter = false
   for _, filter in ipairs(app.explorer_config.filters) do
     if
@@ -164,62 +214,33 @@ xplr.fn.custom.type_to_nav_start = function(app)
   return messages
 end
 
-xplr.fn.custom.type_to_nav_reset_filters = function(app)
-  local messages = {}
-  if is_dot_filter then
-    table.insert(messages, {
-      AddNodeFilter = {
-        filter = 'RelativePathDoesNotStartWith',
-        input = '.',
-      },
-    })
-  end
-  for _, filter in ipairs(app.explorer_config.filters) do
-    if filter.filter == 'RelativePathDoesStartWith' then
-      table.insert(messages, {
-        RemoveNodeFilter = {
-          filter = 'RelativePathDoesStartWith',
-          input = filter.input,
-        },
-      })
-    end
-  end
-  return messages
-end
-
 xplr.fn.custom.type_to_nav_quit = function(app)
   local messages = {}
-  table.insert(
-    messages,
-    { CallLuaSilently = 'custom.type_to_nav_reset_filters' }
-  )
-  table.insert(
-    messages,
-    { CallLuaSilently = 'custom.type_to_nav_reset_filters' }
-  )
-  table.insert(messages, 'ExplorePwdAsync')
-  table.insert(messages, 'PopMode')
-  table.insert(messages, { SwitchModeBuiltin = 'default' })
+  quit(app, messages)
   return messages
 end
 
--- TODO deal with symlinks
 xplr.fn.custom.type_to_nav_accept = function(app)
   local node = app.focused_node
+  local cd
   if node.is_dir then
+    cd = node.absolute_path
+  elseif node.is_symlink then
+    if node.symlink.is_dir then
+      cd = node.symlink.absolute_path
+    end
+  end
+  if cd then
     local messages = {}
-    table.insert(
-      messages,
-      { CallLuaSilently = 'custom.type_to_nav_reset_filters' }
-    )
+    reset_filters(app, messages)
     table.insert(messages, { SetInputBuffer = '' })
-    table.insert(messages, { ChangeDirectory = node.absolute_path })
-    table.insert(messages, {
-      CallLuaSilently = 'custom.type_to_nav_rebuf',
-    })
+    table.insert(messages, { ChangeDirectory = cd })
+    table.insert(messages, { CallLuaSilently = 'custom.type_to_nav_rebuf' })
     return messages
   end
-  return xplr.fn.custom.type_to_nav_quit(app)
+  local messages = {}
+  quit(app, messages)
+  return messages
 end
 
 local char_bindings = {
@@ -235,6 +256,34 @@ xplr.config.modes.custom.type_to_nav.key_bindings = {
   on_special_character = char_bindings,
   on_key = {},
 }
+
+xplr.fn.custom.type_to_nav_back0 = function(app)
+  if #app.directory_buffer.nodes ~= dir_card then
+    return
+  end
+  local input = app.input_buffer
+  if #input == 0 then
+    return
+  end
+  local messages = {}
+  input = input:sub(1, -2)
+  table.insert(messages, { SetInputBuffer = input })
+  reset_filters(app, messages)
+  table.insert(messages, {
+    AddNodeFilter = {
+      filter = 'RelativePathDoesStartWith',
+      input = input,
+    },
+  })
+  table.insert(messages, 'ExplorePwd')
+  table.insert(messages, { CallLuaSilently = 'custom.type_to_nav_back0' })
+  return messages
+end
+
+xplr.fn.custom.type_to_nav_back = function(app)
+  dir_card = #app.directory_buffer.nodes
+  return { { CallLuaSilently = 'custom.type_to_nav_back0' } }
+end
 
 M.setup = function(lopts)
   if lopts then
@@ -260,10 +309,17 @@ M.setup = function(lopts)
         help = 'up',
         messages = { { CallLuaSilently = 'custom.type_to_nav_up' } },
       },
+      -- backspace = {
+      --   help = 'remove last character',
+      --   messages = {
+      --     'RemoveInputBufferLastCharacter',
+      --     { CallLuaSilently = 'custom.type_to_nav_rebuf' },
+      --   },
+      -- },
       backspace = {
         help = 'remove last character',
         messages = {
-          { CallLuaSilently = 'custom.type_to_nav_remove_last_character' },
+          { CallLuaSilently = 'custom.type_to_nav_back' },
         },
       },
       tab = {
