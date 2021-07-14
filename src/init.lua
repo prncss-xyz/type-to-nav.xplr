@@ -83,10 +83,18 @@ local function rebuf(app, messages)
       return
     end
     if count == 1 then
+      local cd
       if node.is_dir then
+        cd = node.absolute_path
+      elseif node.is_symlink then
+        if node.symlink.is_dir then
+          cd = node.symlink.absolute_path
+        end
+      end
+      if cd then
         reset_filters(app, messages)
-        table.insert(messages, { ChangeDirectory = node.absolute_path })
         table.insert(messages, { SetInputBuffer = '' })
+        table.insert(messages, { ChangeDirectory = cd })
         table.insert(messages, 'ExplorePwdAsync')
       elseif node.is_file then
         quit(app, messages)
@@ -285,9 +293,9 @@ xplr.fn.custom.type_to_nav_back = function(app)
   return { { CallLuaSilently = 'custom.type_to_nav_back0' } }
 end
 
-M.setup = function(lopts)
-  if lopts then
-    merge_in(opts, lopts)
+M.setup = function(user_opts)
+  if user_opts then
+    merge_in(opts, user_opts)
   end
   if opts.default_bindings then
     xplr.config.modes.builtin.default.key_bindings.on_key['ctrl-n'] = {

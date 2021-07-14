@@ -2,9 +2,9 @@ Port of [nnn](https://github.com/jarun/nnn)'s _type-to-nav_ mode for [xplr](http
 
 ## Features
 
-Activate _type-to-nav_ mode and start to type the beginning of relative path. Current directory is filtered accordingly. You can press complete (`tab`) when all the remaining entries starts with the same prefix. When only one entry remains, if it is a directory this directory is moved into, filter is reset and you can continue navigating. If it is a file, _type-to-nav_ mode exits, focusing on that file.
+Activate _type-to-nav_ mode and start to type the beginning of relative path. Current directory is filtered accordingly. You can press complete (`tab`) when all the remaining entries starts with the same prefix. When only one entry remains, if it is a directory or a symlink to a directory this directory is moved into, filter is reset and you can continue navigating. If it is a file, _type-to-nav_ mode exits, focusing on that file.
 
-- cancels key types that leads to empty choices
+If user type a key that would lead to an empty entry choice, this key is cancelled.
 
 ## Installation
 
@@ -81,8 +81,8 @@ Activate _type-to-nav_ mode and start to type the beginning of relative path. Cu
 
 ## TODO
 
-- Deal with symbolic links.
 - Support automatic completion instead having to press `tab` manually
+- refactor
 
 ## Maybe
 
