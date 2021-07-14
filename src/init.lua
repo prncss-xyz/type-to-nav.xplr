@@ -25,7 +25,6 @@ end
 
 local opts = {
   default_bindings = true,
-  autocomplete = true,
 }
 
 local is_dot_filter
@@ -126,30 +125,26 @@ xplr.fn.custom.type_to_nav_private_rebuf = function(app)
   end
   local input
   local shortest
-  if opts.autocomplete then
-    input = nil
-    for _, node in ipairs(app.directory_buffer.nodes) do
-      local p = node.relative_path
-      if p:sub(1, #app.input_buffer) == app.input_buffer then
-        if not shortest then
+  input = nil
+  for _, node in ipairs(app.directory_buffer.nodes) do
+    local p = node.relative_path
+    if p:sub(1, #app.input_buffer) == app.input_buffer then
+      if not shortest then
+        shortest = p
+      else
+        if #p < #shortest then
           shortest = p
-        else
-          if #p < #shortest then
-            shortest = p
-          end
-        end
-        if not input then
-          input = p
-        else
-          input = longest_common_chain(input, p)
         end
       end
+      if not input then
+        input = p
+      else
+        input = longest_common_chain(input, p)
+      end
     end
-    table.insert(messages, { FocusPath = shortest })
-    table.insert(messages, { SetInputBuffer = input })
-  else
-    input = app.input_buffer
   end
+  table.insert(messages, { FocusPath = shortest })
+  table.insert(messages, { SetInputBuffer = input })
   for _, filter in ipairs(app.explorer_config.filters) do
     if filter.filter == 'RelativePathDoesStartWith' then
       table.insert(messages, {
@@ -208,28 +203,6 @@ xplr.fn.custom.type_to_nav_up = function(app)
   table.insert(messages, { SetInputBuffer = '' })
   table.insert(messages, { ChangeDirectory = '..' })
   table.insert(messages, 'ExplorePwd')
-  table.insert(
-    messages,
-    { CallLuaSilently = 'custom.type_to_nav_private_rebuf' }
-  )
-  return messages
-end
-
-xplr.fn.custom.type_to_nav_complete = function(app)
-  if not app.directory_buffer then
-    return
-  end
-  local input = nil
-  for _, node in ipairs(app.directory_buffer.nodes) do
-    local p = node.relative_path
-    if not input then
-      input = p
-    else
-      input = longest_common_chain(input, p)
-    end
-  end
-  local messages = {}
-  table.insert(messages, { SetInputBuffer = input })
   table.insert(
     messages,
     { CallLuaSilently = 'custom.type_to_nav_private_rebuf' }
@@ -406,12 +379,6 @@ M.setup = function(user_opts)
         messages = { 'ToggleSelectAll' },
       },
     })
-    if not opts.autocomplete then
-      xplr.config.modes.custom.type_to_nav.key_bindings.on_key.tab = {
-        help = 'complete',
-        messages = { { CallLuaSilently = 'custom.type_to_nav_complete' } },
-      }
-    end
   end
 end
 

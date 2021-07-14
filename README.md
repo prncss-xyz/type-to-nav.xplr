@@ -2,7 +2,7 @@ Inspired by [nnn](https://github.com/jarun/nnn)'s _type-to-nav_ mode for [xplr](
 
 ## Features
 
-Activate _type-to-nav_ mode and start to type the first character of relative path. Current directory is filtered accordingly. If the same characters follows on all files, you don't need to type them. (You can disable autocomplete). When only one entry remains, if it is a directory or a symlink to a directory, this directory is entered, filter is reset and you can continue navigating. If it is a file, _type-to-nav_ mode exits, focusing on that file.
+Activate _type-to-nav_ mode and type the first character of relative path. Current directory is filtered accordingly. If the same characters follows on all files, you don't need to type them.When only one entry remains, if it is a directory or a valid symlink to a directory, this directory is entered, filter is reset and you can continue navigating. If it is a file, _type-to-nav_ mode exits, focusing on that file.
 
 In selecting mode, when entries are narrowed to a single file, the file is toggled to selection and filter is reset without exiting _type-to-nav_. Accepting (`enter`) toggle the file to selection without resetting filters.
 
@@ -10,7 +10,7 @@ Also:
 
 - When user types '.' as a first character, plugin temporarily disable filter that hides files starting with '.'.
 - If user types a key that would lead to an empty entries, this key is canceled.
-- Always focus on the shortest path, so you never really have to use up/down to select an entry (accept and printable characters will suffice). Amongst equally short paths, will focus the first one.
+- Always focus on the shortest path, so you never need to use up/down to select an entry (`accept` key and printable characters will suffice). Amongst equally short paths, will focus the first one.
 
 ## Installation
 
@@ -39,7 +39,6 @@ Also:
 
   require("type-to-nav").setup({
     default_bindings = false,
-    autocomplte = false,
   })
 
   local function merge_in(t1, t2)
@@ -83,10 +82,6 @@ Also:
       help = 'accept',
       messages = { { CallLuaSilently = 'custom.type_to_nav_accept' } },
     },
-    tab = {
-      help = 'complete',
-      messages = { { CallLuaSilently = 'custom.type_to_nav_complete' } },
-    }
     ['ctrl-p'] = { help = 'focus previous', messages = { 'FocusPrevious' } },
     ['ctrl-n'] = { help = 'focus next', messages = { 'FocusNext' } },
     ['ctrl-s'] = { help = 'toggle select', messages = { 'ToggleSelection' } },
@@ -100,5 +95,6 @@ Also:
 ## TODO
 
 - cover cases relative to entering directory where all files starts the same
-- refactor
+- refactor code
   - break big function
+  - merge redundent code
