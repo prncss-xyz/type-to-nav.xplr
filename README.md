@@ -1,10 +1,16 @@
-Port of [nnn](https://github.com/jarun/nnn)'s _type-to-nav_ mode for [xplr](https://github.com/sayanarijit/xplr), with some tweaks.
+Inspired by [nnn](https://github.com/jarun/nnn)'s _type-to-nav_ mode for [xplr](https://github.com/sayanarijit/xplr), with some tweaks.
 
 ## Features
 
 Activate _type-to-nav_ mode and start to type the beginning of relative path. Current directory is filtered accordingly. You can press complete (`tab`) when all the remaining entries starts with the same prefix. When only one entry remains, if it is a directory or a symlink to a directory this directory is moved into, filter is reset and you can continue navigating. If it is a file, _type-to-nav_ mode exits, focusing on that file.
 
-If user type a key that would lead to an empty entry choice, this key is cancelled.
+When user types '.' as a first character, plugin temporarily disable filter that hides files starting with '.'.
+
+If user type a key that would lead to an empty entry choice, this key is canceled.
+
+Always focus on the shortest path, so you never really have to use up/down to select an entry (accept and printable characters will suffice).
+
+Optionally, after every keystroke complete characters that do not restrict the selection.
 
 ## Installation
 
@@ -31,11 +37,17 @@ If user type a key that would lead to an empty entry choice, this key is cancell
 
   -- Or
 
-  require("type-to-nav").setup {
+  require("type-to-nav").setup({
     default_bindings = false,
-  }
+    autocomplte = false,
+  })
 
-  -- this reproduces the defaults, work it from there!
+  local function merge_in(t1, t2)
+    for k, v in pairs(t2) do
+      t1[k] = v
+    end
+  end
+
   xplr.config.modes.builtin.default.key_bindings.on_key['ctrl-n'] = {
     help = 'type-to-nav',
     messages = {
@@ -51,24 +63,24 @@ If user type a key that would lead to an empty entry choice, this key is cancell
       help = 'clear input',
       messages = { { CallLuaSilently = 'custom.type_to_nav_clear_input' } },
     },
-    ['ctrl-h'] = {
+    ['h'] = {
       help = 'up',
       messages = { { CallLuaSilently = 'custom.type_to_nav_up' } },
     },
     backspace = {
-      help = 'remove last character',
+      help = 'remove last characters',
       messages = {
-        { CallLuaSilently = 'custom.type_to_nav_remove_last_character' },
+        { CallLuaSilently = 'custom.type_to_nav_back' },
       },
-    },
-    tab = {
-      help = 'complete',
-      messages = { { CallLuaSilently = 'custom.type_to_nav_complete' } },
     },
     enter = {
       help = 'accept',
       messages = { { CallLuaSilently = 'custom.type_to_nav_accept' } },
     },
+    tab = {
+      help = 'complete',
+      messages = { { CallLuaSilently = 'custom.type_to_nav_complete' } },
+    }
     ['ctrl-p'] = { help = 'focus previous', messages = { 'FocusPrevious' } },
     ['ctrl-n'] = { help = 'focus next', messages = { 'FocusNext' } },
     ['ctrl-s'] = { help = 'toggle select', messages = { 'ToggleSelection' } },
@@ -81,8 +93,9 @@ If user type a key that would lead to an empty entry choice, this key is cancell
 
 ## TODO
 
-- Support automatic completion instead having to press `tab` manually
 - refactor
+  - add `private` in private methods identifiers
+  - break big function
 
 ## Maybe
 

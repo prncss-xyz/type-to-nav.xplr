@@ -25,6 +25,7 @@ end
 
 local opts = {
   default_bindings = true,
+  autocomplete = true,
 }
 
 local is_dot_filter
@@ -60,7 +61,18 @@ local function quit(app, messages)
   table.insert(messages, { FocusPath = focused_node.absolute_path })
 end
 
-local function rebuf(app, messages)
+local function dir_dest(node)
+  if node.is_dir then
+    return node.absolute_path
+  end
+  if node.is_symlink and not node.is_broken and node.symlink.is_dir then
+    return node.symlink.absolute_path
+  end
+end
+
+-- I am a monster, break me into pieces
+xplr.fn.custom.type_to_nav_private_rebuf = function(app)
+  local messages = {}
   if #app.input_buffer > 0 then
     local count = 0
     local node
@@ -79,29 +91,51 @@ local function rebuf(app, messages)
       input = input:sub(1, -2)
       table.insert(messages, { SetInputBuffer = input })
       table.insert(messages, 'ExplorePwd')
-      table.insert(messages, { CallLuaSilently = 'custom.type_to_nav_back0' })
-      return
+      table.insert(
+        messages,
+        { CallLuaSilently = 'custom.type_to_nav_private_back0' }
+      )
+      return messages
     end
     if count == 1 then
-      local cd
-      if node.is_dir then
-        cd = node.absolute_path
-      elseif node.is_symlink then
-        if node.symlink.is_dir then
-          cd = node.symlink.absolute_path
-        end
-      end
+      local cd = dir_dest(node)
       if cd then
         reset_filters(app, messages)
         table.insert(messages, { SetInputBuffer = '' })
         table.insert(messages, { ChangeDirectory = cd })
         table.insert(messages, 'ExplorePwdAsync')
-      elseif node.is_file then
+      else
         quit(app, messages)
         table.insert(messages, { FocusPath = node.absolute_path })
       end
-      return
+      return messages
     end
+  end
+  local input
+  local shortest
+  if opts.autocomplete then
+    input = nil
+    for _, node in ipairs(app.directory_buffer.nodes) do
+      local p = node.relative_path
+      if p:sub(1, #app.input_buffer) == app.input_buffer then
+        if not shortest then
+          shortest = p
+        else
+          if #p < #shortest then
+            shortest = p
+          end
+        end
+        if not input then
+          input = p
+        else
+          input = longest_common_chain(input, p)
+        end
+      end
+    end
+    table.insert(messages, { FocusPath = shortest })
+    table.insert(messages, { SetInputBuffer = input })
+  else
+    input = app.input_buffer
   end
   for _, filter in ipairs(app.explorer_config.filters) do
     if filter.filter == 'RelativePathDoesStartWith' then
@@ -121,22 +155,17 @@ local function rebuf(app, messages)
       },
     })
   end
-  if #app.input_buffer > 0 then
+  if #input > 0 then
     table.insert(messages, {
       AddNodeFilter = {
         filter = 'RelativePathDoesStartWith',
-        input = app.input_buffer,
+        input = input,
       },
     })
   end
   table.insert(messages, 'ExplorePwdAsync')
+  return messages
 end
-
--- local function clear_input(app, messages)
---   reset_filters(app, messages)
---   table.insert(messages, { SetInputBuffer = '' })
---   rebuf(app, messages)
--- end
 
 xplr.config.modes.custom.type_to_nav = {
   name = 'type-to-nav',
@@ -149,17 +178,14 @@ xplr.fn.custom.type_to_nav_reset_filters = function(app)
   return messages
 end
 
-xplr.fn.custom.type_to_nav_rebuf = function(app)
-  local messages = {}
-  rebuf(app, messages)
-  return messages
-end
-
 xplr.fn.custom.type_to_nav_clear_input = function(app)
   local messages = {}
   reset_filters(app, messages)
   table.insert(messages, { SetInputBuffer = '' })
-  table.insert(messages, { CallLuaSilently = 'custom.type_to_nav_rebuf' })
+  table.insert(
+    messages,
+    { CallLuaSilently = 'custom.type_to_nav_private_rebuf' }
+  )
   return messages
 end
 
@@ -169,7 +195,10 @@ xplr.fn.custom.type_to_nav_up = function(app)
   table.insert(messages, { SetInputBuffer = '' })
   table.insert(messages, { ChangeDirectory = '..' })
   table.insert(messages, 'ExplorePwd')
-  table.insert(messages, { CallLuaSilently = 'custom.type_to_nav_rebuf' })
+  table.insert(
+    messages,
+    { CallLuaSilently = 'custom.type_to_nav_private_rebuf' }
+  )
   return messages
 end
 
@@ -188,16 +217,12 @@ xplr.fn.custom.type_to_nav_complete = function(app)
   end
   local messages = {}
   table.insert(messages, { SetInputBuffer = input })
-  table.insert(messages, { CallLuaSilently = 'custom.type_to_nav_rebuf' })
+  table.insert(
+    messages,
+    { CallLuaSilently = 'custom.type_to_nav_private_rebuf' }
+  )
   return messages
 end
-
--- xplr.fn.custom.type_to_nav_remove_last_character = function(app)
---   local messages = {}
---   table.insert(messages, 'RemoveInputBufferLastCharacter')
---   table.insert(messages, { CallLuaSilently = 'custom.type_to_nav_rebuf' })
---   return messages
--- end
 
 xplr.fn.custom.type_to_nav_start = function(app)
   local messages = {}
@@ -229,43 +254,24 @@ xplr.fn.custom.type_to_nav_quit = function(app)
 end
 
 xplr.fn.custom.type_to_nav_accept = function(app)
+  local messages = {}
   local node = app.focused_node
-  local cd
-  if node.is_dir then
-    cd = node.absolute_path
-  elseif node.is_symlink then
-    if node.symlink.is_dir then
-      cd = node.symlink.absolute_path
-    end
-  end
+  local cd = dir_dest(node)
   if cd then
-    local messages = {}
     reset_filters(app, messages)
     table.insert(messages, { SetInputBuffer = '' })
     table.insert(messages, { ChangeDirectory = cd })
-    table.insert(messages, { CallLuaSilently = 'custom.type_to_nav_rebuf' })
-    return messages
+    table.insert(
+      messages,
+      { CallLuaSilently = 'custom.type_to_nav_private_rebuf' }
+    )
+  else
+    quit(app, messages)
   end
-  local messages = {}
-  quit(app, messages)
   return messages
 end
 
-local char_bindings = {
-  messages = {
-    'BufferInputFromKey',
-    { CallLuaSilently = 'custom.type_to_nav_rebuf' },
-  },
-}
-
-xplr.config.modes.custom.type_to_nav.key_bindings = {
-  on_alphabet = char_bindings,
-  on_number = char_bindings,
-  on_special_character = char_bindings,
-  on_key = {},
-}
-
-xplr.fn.custom.type_to_nav_back0 = function(app)
+xplr.fn.custom.type_to_nav_private_back0 = function(app)
   if #app.directory_buffer.nodes ~= dir_card then
     return
   end
@@ -284,21 +290,37 @@ xplr.fn.custom.type_to_nav_back0 = function(app)
     },
   })
   table.insert(messages, 'ExplorePwd')
-  table.insert(messages, { CallLuaSilently = 'custom.type_to_nav_back0' })
+  table.insert(
+    messages,
+    { CallLuaSilently = 'custom.type_to_nav_private_back0' }
+  )
   return messages
 end
 
 xplr.fn.custom.type_to_nav_back = function(app)
   dir_card = #app.directory_buffer.nodes
-  return { { CallLuaSilently = 'custom.type_to_nav_back0' } }
+  return { { CallLuaSilently = 'custom.type_to_nav_private_back0' } }
 end
+
+local char_bindings = {
+  messages = {
+    'BufferInputFromKey',
+    { CallLuaSilently = 'custom.type_to_nav_private_rebuf' },
+  },
+}
+xplr.config.modes.custom.type_to_nav.key_bindings = {
+  on_alphabet = char_bindings,
+  on_number = char_bindings,
+  on_special_character = char_bindings,
+  on_key = {},
+}
 
 M.setup = function(user_opts)
   if user_opts then
     merge_in(opts, user_opts)
   end
   if opts.default_bindings then
-    xplr.config.modes.builtin.default.key_bindings.on_key['ctrl-n'] = {
+    xplr.config.modes.builtin.default.key_bindings.on_key['n'] = {
       help = 'type-to-nav',
       messages = {
         { CallLuaSilently = 'custom.type_to_nav_start' },
@@ -317,22 +339,11 @@ M.setup = function(user_opts)
         help = 'up',
         messages = { { CallLuaSilently = 'custom.type_to_nav_up' } },
       },
-      -- backspace = {
-      --   help = 'remove last character',
-      --   messages = {
-      --     'RemoveInputBufferLastCharacter',
-      --     { CallLuaSilently = 'custom.type_to_nav_rebuf' },
-      --   },
-      -- },
       backspace = {
-        help = 'remove last character',
+        help = 'remove last characters',
         messages = {
           { CallLuaSilently = 'custom.type_to_nav_back' },
         },
-      },
-      tab = {
-        help = 'complete',
-        messages = { { CallLuaSilently = 'custom.type_to_nav_complete' } },
       },
       enter = {
         help = 'accept',
@@ -346,6 +357,12 @@ M.setup = function(user_opts)
         messages = { 'ToggleSelectAll' },
       },
     })
+    if not opts.autocomplete then
+      xplr.config.modes.custom.type_to_nav.key_bindings.on_key.tab = {
+        help = 'complete',
+        messages = { { CallLuaSilently = 'custom.type_to_nav_complete' } },
+      }
+    end
   end
 end
 
