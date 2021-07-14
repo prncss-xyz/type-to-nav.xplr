@@ -30,6 +30,7 @@ local opts = {
 
 local is_dot_filter
 local dir_card
+local selecting
 
 local function reset_filters(app, messages)
   if is_dot_filter then
@@ -70,6 +71,24 @@ local function dir_dest(node)
   end
 end
 
+local function accept(app, messages, node)
+  local cd = dir_dest(node)
+  if cd then
+    reset_filters(app, messages)
+    table.insert(messages, { SetInputBuffer = '' })
+    table.insert(messages, { ChangeDirectory = cd })
+    table.insert(messages, 'ExplorePwdAsync')
+  elseif selecting then
+    reset_filters(app, messages)
+    table.insert(messages, { SetInputBuffer = '' })
+    table.insert(messages, { ToggleSelectionByPath = node.absolute_path })
+    table.insert(messages, 'ExplorePwdAsync')
+  else
+    quit(app, messages)
+    table.insert(messages, { FocusPath = node.absolute_path })
+  end
+end
+
 -- I am a monster, break me into pieces
 xplr.fn.custom.type_to_nav_private_rebuf = function(app)
   local messages = {}
@@ -81,6 +100,9 @@ xplr.fn.custom.type_to_nav_private_rebuf = function(app)
       -- check if node's relative_path starts with input buffer
       if p:sub(1, #app.input_buffer) == app.input_buffer then
         count = count + 1
+        if count == 2 then
+          break
+        end
         node = node0
       end
     end
@@ -98,16 +120,7 @@ xplr.fn.custom.type_to_nav_private_rebuf = function(app)
       return messages
     end
     if count == 1 then
-      local cd = dir_dest(node)
-      if cd then
-        reset_filters(app, messages)
-        table.insert(messages, { SetInputBuffer = '' })
-        table.insert(messages, { ChangeDirectory = cd })
-        table.insert(messages, 'ExplorePwdAsync')
-      else
-        quit(app, messages)
-        table.insert(messages, { FocusPath = node.absolute_path })
-      end
+      accept(app, messages, node)
       return messages
     end
   end
@@ -224,8 +237,8 @@ xplr.fn.custom.type_to_nav_complete = function(app)
   return messages
 end
 
-xplr.fn.custom.type_to_nav_start = function(app)
-  local messages = {}
+local function start(app, messages, selecting_in)
+  selecting = selecting_in
   table.insert(messages, { SwitchModeCustom = 'type_to_nav' })
   table.insert(messages, { BufferInput = '' })
   is_dot_filter = false
@@ -244,6 +257,17 @@ xplr.fn.custom.type_to_nav_start = function(app)
     end
   end
   table.insert(messages, 'ExplorePwdAsync')
+end
+
+xplr.fn.custom.type_to_nav_start = function(app)
+  local messages = {}
+  start(app, messages, false)
+  return messages
+end
+
+xplr.fn.custom.type_to_nav_start_selecting = function(app)
+  local messages = {}
+  start(app, messages, true)
   return messages
 end
 
@@ -253,6 +277,7 @@ xplr.fn.custom.type_to_nav_quit = function(app)
   return messages
 end
 
+-- slightly different from accept function, explore how they could be merged
 xplr.fn.custom.type_to_nav_accept = function(app)
   local messages = {}
   local node = app.focused_node
@@ -261,6 +286,15 @@ xplr.fn.custom.type_to_nav_accept = function(app)
     reset_filters(app, messages)
     table.insert(messages, { SetInputBuffer = '' })
     table.insert(messages, { ChangeDirectory = cd })
+    table.insert(
+      messages,
+      { CallLuaSilently = 'custom.type_to_nav_private_rebuf' }
+    )
+  elseif selecting then
+    reset_filters(app, messages)
+    table.insert(messages, { SetInputBuffer = '' })
+    table.insert(messages, 'ToggleSelection')
+    table.insert(messages, 'ExplorePwd')
     table.insert(
       messages,
       { CallLuaSilently = 'custom.type_to_nav_private_rebuf' }
@@ -297,6 +331,11 @@ xplr.fn.custom.type_to_nav_private_back0 = function(app)
   return messages
 end
 
+xplr.fn.custom.type_to_nav_toggle_selecting = function(app)
+  selecting = not selecting
+  return {}
+end
+
 xplr.fn.custom.type_to_nav_back = function(app)
   dir_card = #app.directory_buffer.nodes
   return { { CallLuaSilently = 'custom.type_to_nav_private_back0' } }
@@ -326,6 +365,12 @@ M.setup = function(user_opts)
         { CallLuaSilently = 'custom.type_to_nav_start' },
       },
     }
+    xplr.config.modes.builtin.default.key_bindings.on_key['N'] = {
+      help = 'type-to-nav',
+      messages = {
+        { CallLuaSilently = 'custom.type_to_nav_start_selecting' },
+      },
+    }
     merge_in(xplr.config.modes.custom.type_to_nav.key_bindings.on_key, {
       esc = {
         help = 'quit mode',
@@ -334,6 +379,10 @@ M.setup = function(user_opts)
       ['ctrl-u'] = {
         help = 'clear input',
         messages = { { CallLuaSilently = 'custom.type_to_nav_clear_input' } },
+      },
+      ['ctrl-v'] = {
+        help = 'toggle selecting',
+        messages = { { CallLuaSilently = 'custom.type_to_nav_toggle_selecting' } },
       },
       ['ctrl-h'] = {
         help = 'up',

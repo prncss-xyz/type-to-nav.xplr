@@ -2,15 +2,15 @@ Inspired by [nnn](https://github.com/jarun/nnn)'s _type-to-nav_ mode for [xplr](
 
 ## Features
 
-Activate _type-to-nav_ mode and start to type the beginning of relative path. Current directory is filtered accordingly. You can press complete (`tab`) when all the remaining entries starts with the same prefix. When only one entry remains, if it is a directory or a symlink to a directory this directory is moved into, filter is reset and you can continue navigating. If it is a file, _type-to-nav_ mode exits, focusing on that file.
+Activate _type-to-nav_ mode and start to type the first character of relative path. Current directory is filtered accordingly. If the same characters follows on all files, you don't need to type them. (You can disable autocomplete). When only one entry remains, if it is a directory or a symlink to a directory, this directory is entered, filter is reset and you can continue navigating. If it is a file, _type-to-nav_ mode exits, focusing on that file.
 
-When user types '.' as a first character, plugin temporarily disable filter that hides files starting with '.'.
+In selecting mode, when entries are narrowed to a single file, the file is toggled to selection and filter is reset without exiting _type-to-nav_. Accepting (`enter`) toggle the file to selection without resetting filters.
 
-If user type a key that would lead to an empty entry choice, this key is canceled.
+Also:
 
-Always focus on the shortest path, so you never really have to use up/down to select an entry (accept and printable characters will suffice).
-
-Optionally, after every keystroke complete characters that do not restrict the selection.
+- When user types '.' as a first character, plugin temporarily disable filter that hides files starting with '.'.
+- If user types a key that would lead to an empty entries, this key is canceled.
+- Always focus on the shortest path, so you never really have to use up/down to select an entry (accept and printable characters will suffice). Amongst equally short paths, will focus the first one.
 
 ## Installation
 
@@ -54,6 +54,12 @@ Optionally, after every keystroke complete characters that do not restrict the s
       { CallLuaSilently = 'custom.type_to_nav_start' },
     },
   }
+  xplr.config.modes.builtin.default.key_bindings.on_key['N'] = {
+    help = 'type-to-nav',
+    messages = {
+      { CallLuaSilently = 'custom.type_to_nav_start_selecting' },
+    },
+  }
   merge_in(xplr.config.modes.custom.type_to_nav.key_bindings.on_key, {
     esc = {
       help = 'quit mode',
@@ -93,10 +99,6 @@ Optionally, after every keystroke complete characters that do not restrict the s
 
 ## TODO
 
+- cover cases relative to entering directory where all files starts the same
 - refactor
-  - add `private` in private methods identifiers
   - break big function
-
-## Maybe
-
-- Select submode where on accepting a file, the file is added to selection, the input is clear but _type-to-nav_ mode does not exit.
