@@ -31,7 +31,7 @@ local dir_card
 local selecting
 
 local function reset_filters(app, messages)
-  if app.input_buffer:sub(1,1) == '.' then
+  if app.input_buffer and app.input_buffer:sub(1, 1) == '.' then
     table.insert(messages, {
       RemoveNodeFilter = {
         filter = 'RelativePathDoesNotStartWith',
@@ -57,7 +57,9 @@ local function quit(app, messages)
   table.insert(messages, 'ExplorePwdAsync')
   table.insert(messages, 'PopMode')
   table.insert(messages, { SwitchModeBuiltin = 'default' })
-  table.insert(messages, { FocusPath = focused_node.absolute_path })
+  if focused_node then
+    table.insert(messages, { FocusPath = focused_node.absolute_path })
+  end
 end
 
 local function dir_dest(node)
@@ -113,7 +115,7 @@ end
 -- I am a monster, break me into pieces
 xplr.fn.custom.type_to_nav_private_rebuf = function(app)
   local messages = {}
-  if #app.input_buffer > 0 then
+  if app.input_buffer and #app.input_buffer > 0 then
     local count = 0
     local node
     for _, node0 in ipairs(app.directory_buffer.nodes) do
@@ -150,7 +152,9 @@ xplr.fn.custom.type_to_nav_private_rebuf = function(app)
   input = nil
   for _, node in ipairs(app.directory_buffer.nodes) do
     local p = node.relative_path
-    if p:sub(1, #app.input_buffer) == app.input_buffer then
+    if
+      not app.input_buffer or p:sub(1, #app.input_buffer) == app.input_buffer
+    then
       if not shortest then
         shortest = p
       else
@@ -305,7 +309,7 @@ xplr.fn.custom.type_to_nav_private_back0 = function(app)
   if #app.directory_buffer.nodes ~= dir_card then
     return
   end
-  local input = app.input_buffer
+  local input = app.input_buffer or ''
   if #input == 0 then
     return
   end

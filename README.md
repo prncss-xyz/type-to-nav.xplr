@@ -99,6 +99,7 @@ Also:
 ## TODO / not working
 
 - restore dot filter on dir change
+- proper spacebar handling
 - proper unicode handling on backspace
 - cover cases relative to entering directory where all files starts the same
 - refactor code
